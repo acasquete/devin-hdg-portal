@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "BLOB_CONTAINER": "uploads",
+    "COSMOS_URL": "https://localhost:8081",
+    "COSMOS_DB": "documentdb",
+    "COSMOS_CONTAINER": "documents",
+    "ANALYZER_ENDPOINT": "https://your-analyzer.cognitiveservices.azure.com",
+    "ANALYZER_ID": "my-receipts",
+    "KEY_VAULT_URI": "https://your-keyvault.vault.azure.net/"
+  }
+}

@@ -1,0 +1,587 @@
+openapi: 3.0.0
+info:
+  title: Document Intelligence API
+  description: API for asynchronous document processing with Azure AI Content Understanding
+  version: 1.0.0
+  contact:
+    name: Document Intelligence Team
+    email: admin@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://apim-docint-dev.azure-api.net/api
+    description: Development environment
+  - url: https://apim-docint-prod.azure-api.net/api
+    description: Production environment
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /documents:
+    post:
+      summary: Upload document for processing
+      description: Upload a single document for asynchronous analysis with Azure AI Content Understanding
+      operationId: uploadDocument
+      tags:
+        - Documents
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          description: Tenant identifier for multi-tenancy
+          schema:
+            type: string
+            example: "tenant_123"
+        - name: x-user-id
+          in: header
+          required: true
+          description: User identifier
+          schema:
+            type: string
+            example: "user_456"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file to process (PDF, PNG, JPG, TIFF)
+            examples:
+              file_upload:
+                summary: File upload example
+                description: Upload a receipt or invoice for processing
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileUrl:
+                  type: string
+                  format: uri
+                  description: URL of the file to process
+                  example: "https://example.com/receipt.pdf"
+                fileName:
+                  type: string
+                  description: Optional filename for the document
+                  example: "receipt_2025.pdf"
+              required:
+                - fileUrl
+            examples:
+              url_upload:
+                summary: URL upload example
+                value:
+                  fileUrl: "https://example.com/receipt.pdf"
+                  fileName: "receipt_2025.pdf"
+      responses:
+        '202':
+          description: Document accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+              examples:
+                success:
+                  summary: Successful upload
+                  value:
+                    documentId: "doc_12345678-1234-1234-1234-123456789012"
+                    resultId: "result_87654321-4321-4321-4321-210987654321"
+                    status: "running"
+        '400':
+          description: Bad request - missing headers or invalid file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_headers:
+                  summary: Missing required headers
+                  value:
+                    error: "Missing x-tenant-id or x-user-id headers"
+                no_file:
+                  summary: No file provided
+                  value:
+                    error: "No file provided"
+        '429':
+          description: Rate limit exceeded or quota limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaErrorResponse'
+              examples:
+                quota_exceeded:
+                  summary: Tenant quota exceeded
+                  value:
+                    error: "Quota limit exceeded"
+                    current: 8
+                    limit: 10
+                    requested: 3
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: List documents for tenant
+      description: Retrieve a paginated list of documents for the specified tenant
+      operationId: listDocuments
+      tags:
+        - Documents
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          description: Tenant identifier
+          schema:
+            type: string
+            example: "tenant_123"
+        - name: status
+          in: query
+          description: Filter by document status
+          schema:
+            type: string
+            enum: [submitted, running, succeeded, failed, canceled, timeout]
+            example: "succeeded"
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+        '400':
+          description: Bad request - missing tenant header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents/{documentId}:
+    get:
+      summary: Get document status and results
+      description: Retrieve the current status and analysis results for a specific document
+      operationId: getDocument
+      tags:
+        - Documents
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          description: Unique document identifier
+          schema:
+            type: string
+            example: "doc_12345678-1234-1234-1234-123456789012"
+      responses:
+        '200':
+          description: Document details with status and results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+              examples:
+                succeeded:
+                  summary: Successfully processed document
+                  value:
+                    id: "doc_12345678-1234-1234-1234-123456789012"
+                    tenantId: "tenant_123"
+                    userId: "user_456"
+                    createdAt: "2025-08-22T23:42:00Z"
+                    blobUrl: "https://storage.blob.core.windows.net/uploads/tenant_123/doc_123/receipt.pdf"
+                    blobSha256: "a1b2c3d4e5f6..."
+                    analyzerId: "my-receipts"
+                    resultId: "result_87654321-4321-4321-4321-210987654321"
+                    status: "succeeded"
+                    warnings: []
+                    error: null
+                    result:
+                      analyzeResult:
+                        documents:
+                          - fields:
+                              VendorName:
+                                type: "string"
+                                valueString: "Contoso Coffee"
+                              Items:
+                                type: "array"
+                                valueArray:
+                                  - type: "object"
+                                    valueObject:
+                                      Description:
+                                        type: "string"
+                                        valueString: "Coffee"
+                                      Quantity:
+                                        type: "number"
+                                        valueNumber: 2
+                                      UnitPrice:
+                                        type: "number"
+                                        valueNumber: 4.50
+                    extracted:
+                      VendorName: "Contoso Coffee"
+                      Items:
+                        - Description: "Coffee"
+                          Quantity: 2
+                          UnitPrice: 4.50
+                running:
+                  summary: Document being processed
+                  value:
+                    id: "doc_12345678-1234-1234-1234-123456789012"
+                    tenantId: "tenant_123"
+                    userId: "user_456"
+                    status: "running"
+                    resultId: "result_87654321-4321-4321-4321-210987654321"
+                    createdAt: "2025-08-22T23:42:00Z"
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Document not found
+                  value:
+                    error: "Document not found"
+
+  /documents/batch:
+    post:
+      summary: Upload multiple documents for batch processing
+      description: Upload multiple documents for concurrent processing with quota management
+      operationId: batchUpload
+      tags:
+        - Documents
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          description: Tenant identifier
+          schema:
+            type: string
+            example: "tenant_123"
+        - name: x-user-id
+          in: header
+          required: true
+          description: User identifier
+          schema:
+            type: string
+            example: "user_456"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Multiple document files to process
+            examples:
+              batch_upload:
+                summary: Batch file upload
+                description: Upload multiple receipts for processing
+      responses:
+        '202':
+          description: Batch accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResponse'
+              examples:
+                success:
+                  summary: Successful batch upload
+                  value:
+                    batchId: "batch_12345678-1234-1234-1234-123456789012"
+                    status: "processing"
+                    fileCount: 5
+        '429':
+          description: Quota limit would be exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaErrorResponse'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check the health status of the service and its dependencies
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: All systems healthy
+                  value:
+                    status: "healthy"
+                    timestamp: "2025-08-22T23:42:00Z"
+                    dependencies:
+                      cosmosdb: "healthy"
+                      blobstorage: "healthy"
+                      keyvault: "healthy"
+        '503':
+          description: Service is unhealthy or degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                degraded:
+                  summary: Some dependencies unhealthy
+                  value:
+                    status: "degraded"
+                    timestamp: "2025-08-22T23:42:00Z"
+                    dependencies:
+                      cosmosdb: "healthy"
+                      blobstorage: "unhealthy: Connection timeout"
+                      keyvault: "healthy"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Ocp-Apim-Subscription-Key
+      description: API Management subscription key
+
+  schemas:
+    DocumentResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          description: Unique identifier for the uploaded document
+          example: "doc_12345678-1234-1234-1234-123456789012"
+        resultId:
+          type: string
+          description: Analysis result identifier for polling
+          example: "result_87654321-4321-4321-4321-210987654321"
+        status:
+          type: string
+          enum: [submitted, running, succeeded, failed, canceled, timeout]
+          description: Current processing status
+          example: "running"
+      required:
+        - documentId
+        - status
+
+    DocumentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Document identifier
+        tenantId:
+          type: string
+          description: Tenant identifier
+        userId:
+          type: string
+          description: User identifier
+        createdAt:
+          type: string
+          format: date-time
+          description: Document creation timestamp
+        blobUrl:
+          type: string
+          format: uri
+          description: URL of the stored document
+        blobSha256:
+          type: string
+          description: SHA256 hash of the document content
+        analyzerId:
+          type: string
+          description: Azure AI analyzer model identifier
+        resultId:
+          type: string
+          description: Analysis result identifier
+        status:
+          type: string
+          enum: [submitted, running, succeeded, failed, canceled, timeout]
+          description: Current processing status
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Processing warnings
+        error:
+          type: string
+          nullable: true
+          description: Error message if processing failed
+        result:
+          type: object
+          nullable: true
+          description: Complete analysis result from Azure AI
+        extracted:
+          type: object
+          description: Extracted key fields for UI display
+          properties:
+            VendorName:
+              type: string
+              nullable: true
+              description: Extracted vendor name
+            Items:
+              type: array
+              items:
+                type: object
+                properties:
+                  Description:
+                    type: string
+                    description: Item description
+                  Quantity:
+                    type: number
+                    description: Item quantity
+                  UnitPrice:
+                    type: number
+                    description: Unit price
+                  TotalPrice:
+                    type: number
+                    description: Total price for this item
+        ttl:
+          type: integer
+          nullable: true
+          description: Time-to-live for document cleanup
+
+    DocumentListResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentDetail'
+          description: List of documents
+        total:
+          type: integer
+          description: Total number of documents
+        page:
+          type: integer
+          description: Current page number
+        pageSize:
+          type: integer
+          description: Number of items per page
+        totalPages:
+          type: integer
+          description: Total number of pages
+      required:
+        - documents
+        - total
+        - page
+        - pageSize
+        - totalPages
+
+    BatchResponse:
+      type: object
+      properties:
+        batchId:
+          type: string
+          description: Unique identifier for the batch operation
+          example: "batch_12345678-1234-1234-1234-123456789012"
+        status:
+          type: string
+          enum: [processing, completed, failed]
+          description: Batch processing status
+          example: "processing"
+        fileCount:
+          type: integer
+          description: Number of files in the batch
+          example: 5
+      required:
+        - batchId
+        - status
+        - fileCount
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Missing x-tenant-id or x-user-id headers"
+      required:
+        - error
+
+    QuotaErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Quota limit exceeded"
+        current:
+          type: integer
+          description: Current number of documents being processed
+          example: 8
+        limit:
+          type: integer
+          description: Maximum allowed concurrent documents
+          example: 10
+        requested:
+          type: integer
+          description: Number of documents requested
+          example: 3
+      required:
+        - error
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Overall service health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+        dependencies:
+          type: object
+          description: Health status of service dependencies
+          properties:
+            cosmosdb:
+              type: string
+              description: Cosmos DB health status
+            blobstorage:
+              type: string
+              description: Blob Storage health status
+            keyvault:
+              type: string
+              description: Key Vault health status
+      required:
+        - status
+        - timestamp
+        - dependencies
+
+tags:
+  - name: Documents
+    description: Document upload and processing operations
+  - name: System
+    description: System health and monitoring operations
