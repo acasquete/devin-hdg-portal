@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Moon, Sun, User as UserIcon, ChevronDown, Settings, LogOut } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'

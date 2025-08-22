@@ -1,0 +1,29 @@
+{
+  "name": "document-intelligence-service",
+  "version": "1.0.0",
+  "description": "Document Intelligence Service with Hidden Dangerous Goods and Customs Portal modules",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd document-intelligence-frontend && npm run dev",
+    "dev:backend": "cd document-intelligence-backend && poetry run fastapi dev app/main.py",
+    "install:all": "cd document-intelligence-frontend && npm install && cd ../document-intelligence-backend && poetry install",
+    "build": "cd document-intelligence-frontend && npm run build",
+    "lint": "cd document-intelligence-frontend && npm run lint",
+    "test": "echo \"No tests specified yet\"",
+    "clean": "cd document-intelligence-frontend && rm -rf node_modules dist && cd ../document-intelligence-backend && rm -rf .venv"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "document-intelligence",
+    "dangerous-goods",
+    "customs",
+    "fastapi",
+    "react",
+    "typescript"
+  ],
+  "author": "Alex Casquete",
+  "license": "MIT"
+}
