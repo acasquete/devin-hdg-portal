@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { Search, Filter, Eye, AlertTriangle, FileText, ZoomIn, ZoomOut } from 'lucide-react'
+import { Search, Eye, AlertTriangle, FileText, ZoomIn, ZoomOut } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import type { Module } from '@/App'
 
@@ -23,6 +23,7 @@ interface Document {
   confidence: number
   timestamp: string
   hazardCodes?: string[]
+  branch: string
 }
 
 const mockDocuments: Document[] = [
@@ -34,7 +35,8 @@ const mockDocuments: Document[] = [
     dangerousGoods: true,
     confidence: 95.2,
     timestamp: '2024-08-22 21:25:00',
-    hazardCodes: ['UN1203', 'UN1993']
+    hazardCodes: ['UN1203', 'UN1993'],
+    branch: 'Salt Lake City'
   },
   {
     id: '2',
@@ -43,7 +45,8 @@ const mockDocuments: Document[] = [
     documentType: 'Shipping Manifest',
     dangerousGoods: false,
     confidence: 87.8,
-    timestamp: '2024-08-22 21:20:00'
+    timestamp: '2024-08-22 21:20:00',
+    branch: 'Los Ángeles'
   },
   {
     id: '3',
@@ -53,7 +56,8 @@ const mockDocuments: Document[] = [
     dangerousGoods: true,
     confidence: 92.1,
     timestamp: '2024-08-22 21:15:00',
-    hazardCodes: ['UN2794']
+    hazardCodes: ['UN2794'],
+    branch: 'Atlanta'
   },
   {
     id: '4',
@@ -62,7 +66,8 @@ const mockDocuments: Document[] = [
     documentType: 'Bill of Lading',
     dangerousGoods: false,
     confidence: 89.5,
-    timestamp: '2024-08-22 21:10:00'
+    timestamp: '2024-08-22 21:10:00',
+    branch: 'Madrid'
   },
   {
     id: '5',
@@ -72,7 +77,8 @@ const mockDocuments: Document[] = [
     dangerousGoods: true,
     confidence: 96.7,
     timestamp: '2024-08-22 21:05:00',
-    hazardCodes: ['UN1170', 'UN1263']
+    hazardCodes: ['UN1170', 'UN1263'],
+    branch: 'Salt Lake City'
   }
 ]
 
@@ -93,6 +99,7 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [documentTypeFilter, setDocumentTypeFilter] = useState('all')
   const [dangerousGoodsFilter, setDangerousGoodsFilter] = useState('all')
+  const [branchFilter, setBranchFilter] = useState('all')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [zoomLevel, setZoomLevel] = useState(100)
 
@@ -103,8 +110,9 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
     const matchesDG = dangerousGoodsFilter === 'all' || 
                      (dangerousGoodsFilter === 'yes' && doc.dangerousGoods) ||
                      (dangerousGoodsFilter === 'no' && !doc.dangerousGoods)
+    const matchesBranch = branchFilter === 'all' || doc.branch === branchFilter
     
-    return matchesSearch && matchesType && matchesDG
+    return matchesSearch && matchesType && matchesDG && matchesBranch
   })
 
   const getConfidenceColor = (confidence: number) => {
@@ -114,6 +122,7 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
   }
 
   const documentTypes = [...new Set(mockDocuments.map(doc => doc.documentType))]
+  const branches = [...new Set(mockDocuments.map(doc => doc.branch))]
 
   return (
     <div className="space-y-6">
@@ -163,6 +172,18 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
                 <SelectItem value="no">No Hazards</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map(branch => (
+                  <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -179,6 +200,7 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
                 <TableHead>Source File</TableHead>
                 <TableHead>Page</TableHead>
                 <TableHead>Document Type</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Dangerous Goods</TableHead>
                 <TableHead>Confidence</TableHead>
                 <TableHead>Timestamp</TableHead>
@@ -191,6 +213,7 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
                   <TableCell className="font-medium">{doc.sourceFile}</TableCell>
                   <TableCell>{doc.pageNumber}</TableCell>
                   <TableCell>{doc.documentType}</TableCell>
+                  <TableCell className="font-medium">{doc.branch}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {doc.dangerousGoods ? (
