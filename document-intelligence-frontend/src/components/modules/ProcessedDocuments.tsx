@@ -210,9 +210,9 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="factura">Factura</SelectItem>
+                  <SelectItem value="invoice">Invoice</SelectItem>
                   <SelectItem value="packing list">Packing List</SelectItem>
-                  <SelectItem value="declaración de mercancías peligrosas">Declaración de Mercancías Peligrosas</SelectItem>
+                  <SelectItem value="dangerous goods declaration">Dangerous Goods Declaration</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -267,12 +267,12 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Shipment ID</TableHead>
-                <TableHead>Número de páginas</TableHead>
-                <TableHead>Tipo de documento</TableHead>
+                <TableHead>Page Count</TableHead>
+                <TableHead>Document Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>IDG</TableHead>
                 <TableHead>% Confidence</TableHead>
-                <TableHead>Tipo de transporte</TableHead>
+                <TableHead>Transport Type</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
