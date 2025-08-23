@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, FileText, CheckCircle, XCircle, Clock, Settings, AlertCircle } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
+import { useToast } from '@/hooks/use-toast'
+import { apiService } from '@/services/api'
 import type { Module } from '@/App'
 
 interface IngestionProps {
@@ -28,24 +33,77 @@ const mockIngestionHistory = [
   { id: 5, timestamp: '2024-08-22 21:05:00', source: 'Kafka Topic: hdg-documents', status: 'success', documents: 22, size: '4.1 MB' }
 ]
 
-export function Ingestion({ currentModule }: IngestionProps) {
+export function Ingestion({ }: IngestionProps) {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
+  const [shipmentId, setShipmentId] = useState('')
+  const [branch, setBranch] = useState('SLC')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
-  const handleFileUpload = () => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files && files.length > 0) {
+      setSelectedFiles(files)
+    }
+  }
+
+  const handleFileUpload = async () => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      toast({
+        title: "No files selected",
+        description: "Please select files to upload",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!shipmentId.trim()) {
+      toast({
+        title: "Shipment ID required",
+        description: "Please enter a shipment ID",
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsUploading(true)
     setUploadProgress(0)
-    
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setIsUploading(false)
-          return 100
+
+    try {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
+        setUploadProgress((i / selectedFiles.length) * 100)
+        
+        await apiService.uploadDocument(file, shipmentId, branch)
+        
+        toast({
+          title: "Upload successful",
+          description: `${file.name} uploaded successfully`,
+        })
+      }
+      
+      setUploadProgress(100)
+      
+      setTimeout(() => {
+        setSelectedFiles(null)
+        setShipmentId('')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
         }
-        return prev + 10
+        setUploadProgress(0)
+      }, 1000)
+      
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive"
       })
-    }, 200)
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const getStatusIcon = (status: string) => {
@@ -96,16 +154,71 @@ export function Ingestion({ currentModule }: IngestionProps) {
               <CardDescription>Upload documents for testing and immediate processing</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="shipmentId">Shipment ID *</Label>
+                  <Input
+                    id="shipmentId"
+                    value={shipmentId}
+                    onChange={(e) => setShipmentId(e.target.value)}
+                    placeholder="Enter shipment identifier"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="branch">Branch</Label>
+                  <Select value={branch} onValueChange={setBranch}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SLC">SLC - Salt Lake City</SelectItem>
+                      <SelectItem value="LA">LA - Los Angeles</SelectItem>
+                      <SelectItem value="MAD">MAD - Madrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">Drop files here or click to browse</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Supports PDF, PNG, JPG, TIFF files up to 10MB each
                 </p>
-                <Button onClick={handleFileUpload} disabled={isUploading}>
-                  {isUploading ? 'Uploading...' : 'Select Files'}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.tiff"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={isUploading}
+                  className="mr-2"
+                >
+                  Select Files
                 </Button>
+                {selectedFiles && selectedFiles.length > 0 && (
+                  <Button onClick={handleFileUpload} disabled={isUploading}>
+                    {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} file(s)`}
+                  </Button>
+                )}
               </div>
+              
+              {selectedFiles && selectedFiles.length > 0 && !isUploading && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Selected Files:</h4>
+                  <ul className="text-sm text-muted-foreground">
+                    {Array.from(selectedFiles).map((file, index) => (
+                      <li key={index}>{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               
               {isUploading && (
                 <div className="space-y-2">
