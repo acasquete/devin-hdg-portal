@@ -15,7 +15,7 @@ interface MainContentProps {
   sidebarCollapsed: boolean
 }
 
-export function MainContent({ currentModule, currentItem, sidebarCollapsed }: MainContentProps) {
+export function MainContent({ currentModule, currentItem }: MainContentProps) {
   const renderContent = () => {
     switch (currentItem) {
       case 'Dashboard':
@@ -23,15 +23,15 @@ export function MainContent({ currentModule, currentItem, sidebarCollapsed }: Ma
       case 'Ingestion':
         return <Ingestion currentModule={currentModule} />
       case 'Processed Documents':
-        return <ProcessedDocuments currentModule={currentModule} />
+        return <ProcessedDocuments />
       case 'Schema Configuration':
-        return <SchemaConfiguration currentModule={currentModule} />
+        return <SchemaConfiguration />
       case 'Users':
         return <Users currentModule={currentModule} />
       case 'Analytics':
-        return <Analytics currentModule={currentModule} />
+        return <Analytics />
       case 'Configuration':
-        return <Configuration currentModule={currentModule} />
+        return <Configuration />
       case 'Audit':
         return <Audit currentModule={currentModule} />
       default:

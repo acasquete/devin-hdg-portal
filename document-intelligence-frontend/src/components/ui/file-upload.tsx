@@ -39,10 +39,7 @@ export function FileUpload({
 }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false)
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
-    if (rejectedFiles.length > 0) {
-      console.warn('Some files were rejected:', rejectedFiles)
-    }
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     
     if (acceptedFiles.length > 0) {
       onFilesSelected(acceptedFiles)

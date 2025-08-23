@@ -5,14 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
-  BarChart3, 
   TrendingUp, 
   FileText, 
   AlertTriangle, 
   Users, 
   Clock,
-  Download,
-  Calendar
+  Download
 } from 'lucide-react'
 import { 
   LineChart, 
@@ -22,19 +20,12 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
-  BarChart, 
-  Bar, 
   PieChart, 
   Pie, 
   Cell,
   AreaChart,
   Area
 } from 'recharts'
-import type { Module } from '@/App'
-
-interface AnalyticsProps {
-  currentModule: Module
-}
 
 const mockFileAnalytics = [
   { month: 'Jan', processed: 1200, withHazards: 89, avgPages: 3.2 },
@@ -90,7 +81,7 @@ const confidenceDistribution = [
   { range: '60-69%', count: 67, color: '#ef4444' }
 ]
 
-export function Analytics({ currentModule }: AnalyticsProps) {
+export function Analytics() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

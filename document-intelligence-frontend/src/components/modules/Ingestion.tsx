@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,11 +8,7 @@ import { Upload, FileText, CheckCircle, XCircle, Clock, Settings, AlertCircle, R
 import { FileUpload, FileUploadItem } from '@/components/ui/file-upload'
 import { apiService, DocumentResponse, DocumentDetail } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
-import type { Module } from '@/App'
 
-interface IngestionProps {
-  currentModule: Module
-}
 
 const mockKafkaStatus = {
   brokers: ['kafka-broker-1:9092', 'kafka-broker-2:9092', 'kafka-broker-3:9092'],
@@ -30,7 +26,7 @@ const mockIngestionHistory = [
   { id: 5, timestamp: '2024-08-22 21:05:00', source: 'Kafka Topic: hdg-documents', status: 'success', documents: 22, size: '4.1 MB' }
 ]
 
-export function Ingestion({ }: IngestionProps) {
+export function Ingestion() {
   const [isUploading, setIsUploading] = useState(false)
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [documents, setDocuments] = useState<DocumentDetail[]>([])
@@ -106,7 +102,7 @@ export function Ingestion({ }: IngestionProps) {
     setFiles(prev => prev.filter(f => f.id !== fileId))
   }
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setIsLoadingDocuments(true)
       const response = await apiService.listDocuments({ pageSize: 20 })
@@ -120,9 +116,9 @@ export function Ingestion({ }: IngestionProps) {
     } finally {
       setIsLoadingDocuments(false)
     }
-  }
+  }, [toast])
 
-  const pollDocumentStatus = async (documentId: string) => {
+  const pollDocumentStatus = useCallback(async (documentId: string) => {
     try {
       const document = await apiService.getDocument(documentId)
       setDocuments(prev => prev.map(doc => 
@@ -135,11 +131,11 @@ export function Ingestion({ }: IngestionProps) {
     } catch (error) {
       console.error('Failed to poll document status:', error)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadDocuments()
-  }, [])
+  }, [loadDocuments])
 
   useEffect(() => {
     const processingDocs = documents.filter(doc => 
@@ -149,7 +145,7 @@ export function Ingestion({ }: IngestionProps) {
     processingDocs.forEach(doc => {
       setTimeout(() => pollDocumentStatus(doc.id), 2000)
     })
-  }, [documents])
+  }, [documents, pollDocumentStatus])
 
   const handleBatchUpload = async () => {
     const pendingFiles = files.filter(f => f.status === 'pending').map(f => f.file)

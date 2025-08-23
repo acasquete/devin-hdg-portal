@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Plus, Search, Edit, Trash2, Shield, Eye, Settings } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Shield } from 'lucide-react'
 import type { Module, UserRole } from '@/App'
 
 interface UsersProps {

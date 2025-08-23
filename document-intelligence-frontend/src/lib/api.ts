@@ -20,7 +20,7 @@ export interface DocumentDetail {
   status: 'submitted' | 'running' | 'succeeded' | 'failed' | 'canceled' | 'timeout'
   warnings: string[]
   error?: string
-  result?: any
+  result?: Record<string, unknown>
   extracted: {
     VendorName?: string
     Items: Array<{
@@ -163,7 +163,7 @@ class ApiService {
     return response.json()
   }
 
-  async healthCheck(): Promise<any> {
+  async healthCheck(): Promise<Record<string, unknown>> {
     const response = await fetch(`${API_BASE_URL}/health`)
     
     if (!response.ok) {

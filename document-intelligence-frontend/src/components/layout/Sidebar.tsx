@@ -22,7 +22,7 @@ interface SidebarProps {
   onToggleCollapse: () => void
 }
 
-const sidebarItems: { key: SidebarItem; label: string; icon: any }[] = [
+const sidebarItems: { key: SidebarItem; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'Ingestion', label: 'Ingestion', icon: Upload },
   { key: 'Processed Documents', label: 'Processed Documents', icon: FileText },

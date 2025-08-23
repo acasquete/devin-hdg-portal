@@ -22,11 +22,6 @@ import {
   AlertCircle,
   Settings
 } from 'lucide-react'
-import type { Module } from '@/App'
-
-interface SchemaConfigurationProps {
-  currentModule: Module
-}
 
 interface Schema {
   id: string
@@ -128,8 +123,7 @@ const sampleSchemaJson = `{
   }
 }`
 
-export function SchemaConfiguration({ currentModule }: SchemaConfigurationProps) {
-  const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null)
+export function SchemaConfiguration() {
   const [schemaJson, setSchemaJson] = useState(sampleSchemaJson)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 

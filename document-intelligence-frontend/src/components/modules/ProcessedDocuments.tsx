@@ -8,11 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Search, Eye, AlertTriangle, FileText, ZoomIn, ZoomOut } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
-import type { Module } from '@/App'
 
-interface ProcessedDocumentsProps {
-  currentModule: Module
-}
 
 interface Document {
   id: string
@@ -95,7 +91,7 @@ const mockExtractedFields = {
   }
 }
 
-export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
+export function ProcessedDocuments() {
   const [searchTerm, setSearchTerm] = useState('')
   const [documentTypeFilter, setDocumentTypeFilter] = useState('all')
   const [dangerousGoodsFilter, setDangerousGoodsFilter] = useState('all')

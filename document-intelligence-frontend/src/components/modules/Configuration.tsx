@@ -10,7 +10,6 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { 
-  Settings, 
   Database, 
   Shield, 
   Bell, 
@@ -18,14 +17,9 @@ import {
   Edit, 
   Trash2, 
   Save,
-  TestTube,
-  AlertTriangle
+  TestTube
 } from 'lucide-react'
-import type { Module } from '@/App'
 
-interface ConfigurationProps {
-  currentModule: Module
-}
 
 const mockKafkaConfig = {
   brokers: ['kafka-broker-1:9092', 'kafka-broker-2:9092'],
@@ -73,17 +67,17 @@ const mockAlerts = [
   { id: 3, name: 'Processing Delay', type: 'webhook', url: 'https://monitoring.example.com/alerts', enabled: false }
 ]
 
-export function Configuration({ currentModule }: ConfigurationProps) {
+export function Configuration() {
   const [kafkaConfig, setKafkaConfig] = useState(mockKafkaConfig)
   const [modelConfig, setModelConfig] = useState(mockModelConfig)
   const [piiRedactionEnabled, setPiiRedactionEnabled] = useState(true)
   const [newHazardTerm, setNewHazardTerm] = useState({ term: '', type: 'keyword', client: '', region: '' })
 
-  const handleKafkaConfigChange = (field: string, value: any) => {
+  const handleKafkaConfigChange = (field: string, value: string | number | string[] | Record<string, string>) => {
     setKafkaConfig(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleModelConfigChange = (module: string, field: string, value: any) => {
+  const handleModelConfigChange = (module: string, field: string, value: string | number | boolean) => {
     setModelConfig(prev => ({
       ...prev,
       [module]: { ...prev[module as keyof typeof prev], [field]: value }
