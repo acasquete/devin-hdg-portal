@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { Search, Eye, Download, Trash2, FileText, RefreshCw } from 'lucide-react'
+import { Slider } from '@/components/ui/slider'
+import { Label } from '@/components/ui/label'
+import { Eye, Download, Trash2, FileText, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { apiService, type DocumentMetadata, type DocumentFilters } from '@/services/api'
 import type { Module } from '@/App'
@@ -16,29 +18,37 @@ interface ProcessedDocumentsProps {
 }
 
 export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
-  const [searchQuery, setSearchQuery] = useState('')
+  const [shipmentIdFilter, setShipmentIdFilter] = useState('')
   const [documentTypeFilter, setDocumentTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [tagFilter, setTagFilter] = useState('')
+  const [dangerousGoodsFilter, setDangerousGoodsFilter] = useState('all')
+  const [confidenceMin, setConfidenceMin] = useState<number>(0)
+  const [confidenceMax, setConfidenceMax] = useState<number>(100)
+  const [transportTypeFilter, setTransportTypeFilter] = useState('all')
+  const [branchFilter, setBranchFilter] = useState('all')
   const [selectedDocument, setSelectedDocument] = useState<DocumentMetadata | null>(null)
   const [documents, setDocuments] = useState<DocumentMetadata[]>([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
   const [total, setTotal] = useState(0)
-  const [pageSize, setPageSize] = useState(25)
-  const [sortBy, setSortBy] = useState('uploadedAt')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [pageSize] = useState(25)
+  const [sortBy] = useState('uploadedAt')
+  const [sortDir] = useState<'asc' | 'desc'>('desc')
   const { toast } = useToast()
 
   const loadDocuments = async () => {
     setLoading(true)
     try {
       const filters: DocumentFilters = {
-        q: searchQuery || undefined,
-        contentType: documentTypeFilter !== 'all' ? documentTypeFilter : undefined,
+        shipmentId: shipmentIdFilter || undefined,
+        documentType: documentTypeFilter !== 'all' ? documentTypeFilter : undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        tag: tagFilter || undefined,
+        isDangerousGoods: dangerousGoodsFilter !== 'all' ? dangerousGoodsFilter === 'yes' : undefined,
+        confidenceMin: confidenceMin > 0 ? confidenceMin : undefined,
+        confidenceMax: confidenceMax < 100 ? confidenceMax : undefined,
+        transportType: transportTypeFilter !== 'all' ? transportTypeFilter : undefined,
+        branch: branchFilter !== 'all' ? branchFilter : undefined,
         page: currentPage,
         pageSize,
         sortBy,
@@ -62,7 +72,7 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
 
   useEffect(() => {
     loadDocuments()
-  }, [searchQuery, documentTypeFilter, statusFilter, tagFilter, currentPage, pageSize, sortBy, sortDir])
+  }, [shipmentIdFilter, documentTypeFilter, statusFilter, dangerousGoodsFilter, confidenceMin, confidenceMax, transportTypeFilter, branchFilter, currentPage, pageSize, sortBy, sortDir])
 
   const handleDownload = async (documentId: string) => {
     try {
@@ -122,55 +132,125 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
           <CardDescription>Filter documents by various criteria</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search documents..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="shipmentId">Shipment ID</Label>
+              <Input
+                id="shipmentId"
+                placeholder="Filter by shipment ID..."
+                value={shipmentIdFilter}
+                onChange={(e) => setShipmentIdFilter(e.target.value)}
+              />
             </div>
             
-            <Input
-              placeholder="Filter by tag..."
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="w-48"
-            />
-            
-            <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Content Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="application/pdf">PDF</SelectItem>
-                <SelectItem value="image/png">PNG</SelectItem>
-                <SelectItem value="image/jpeg">JPEG</SelectItem>
-                <SelectItem value="image/tiff">TIFF</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Processing">Processing</SelectItem>
+                  <SelectItem value="Processed">Processed</SelectItem>
+                  <SelectItem value="Failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="stored">Stored</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <Label htmlFor="dangerousGoods">IDG (Dangerous Goods)</Label>
+              <Select value={dangerousGoodsFilter} onValueChange={setDangerousGoodsFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Button onClick={loadDocuments} disabled={loading} variant="outline">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div>
+              <Label htmlFor="transportType">Transport Type</Label>
+              <Select value={transportTypeFilter} onValueChange={setTransportTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Transport" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Transport</SelectItem>
+                  <SelectItem value="Air">Air</SelectItem>
+                  <SelectItem value="Ocean">Ocean</SelectItem>
+                  <SelectItem value="Transcon">Transcon</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="branch">Branch</Label>
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  <SelectItem value="SLC">SLC</SelectItem>
+                  <SelectItem value="LA">LA</SelectItem>
+                  <SelectItem value="MAD">MAD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="documentType">Document Type</Label>
+              <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="factura">Factura</SelectItem>
+                  <SelectItem value="packing list">Packing List</SelectItem>
+                  <SelectItem value="declaración de mercancías peligrosas">Declaración de Mercancías Peligrosas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-2">
+              <Label>Confidence Range: {confidenceMin}% - {confidenceMax}%</Label>
+              <div className="mt-2 space-y-2">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Min: {confidenceMin}%</Label>
+                  <Slider
+                    value={[confidenceMin]}
+                    onValueChange={(value) => setConfidenceMin(value[0])}
+                    max={100}
+                    min={0}
+                    step={1}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Max: {confidenceMax}%</Label>
+                  <Slider
+                    value={[confidenceMax]}
+                    onValueChange={(value) => setConfidenceMax(value[0])}
+                    max={100}
+                    min={0}
+                    step={1}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-end">
+              <Button onClick={loadDocuments} disabled={loading} variant="outline" className="w-full">
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -186,12 +266,14 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Document</TableHead>
-                <TableHead>Content Type</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Uploaded</TableHead>
+                <TableHead>Shipment ID</TableHead>
+                <TableHead>Número de páginas</TableHead>
+                <TableHead>Tipo de documento</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Tags</TableHead>
+                <TableHead>IDG</TableHead>
+                <TableHead>% Confidence</TableHead>
+                <TableHead>Tipo de transporte</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -201,32 +283,33 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-blue-500" />
-                      <span className="font-medium">{doc.filename}</span>
+                      <span className="font-medium">{doc.shipmentId}</span>
                     </div>
                   </TableCell>
+                  <TableCell>{doc.pageCount}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{doc.contentType}</Badge>
-                  </TableCell>
-                  <TableCell>{formatFileSize(doc.sizeBytes)}</TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div>{formatDate(doc.ingestion.uploadedAt)}</div>
-                      <div className="text-muted-foreground">{doc.ingestion.uploadedBy}</div>
-                    </div>
+                    <Badge variant="outline">{doc.documentType || 'N/A'}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={doc.status === 'stored' ? 'default' : doc.status === 'failed' ? 'destructive' : 'secondary'}>
+                    <Badge variant={doc.status === 'Processed' ? 'default' : doc.status === 'Failed' ? 'destructive' : 'secondary'}>
                       {doc.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {doc.tags.map((tag, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                    <Badge variant={doc.isDangerousGoods ? 'destructive' : 'outline'}>
+                      {doc.isDangerousGoods ? 'Yes' : 'No'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {doc.confidencePercentage !== null && doc.confidencePercentage !== undefined 
+                      ? `${doc.confidencePercentage.toFixed(1)}%` 
+                      : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{doc.transportType || 'N/A'}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{doc.branch}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -256,6 +339,14 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
                                     <p className="text-sm text-muted-foreground">{selectedDocument.id}</p>
                                   </div>
                                   <div>
+                                    <label className="text-sm font-medium">Shipment ID</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.shipmentId}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium">Filename</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.filename}</p>
+                                  </div>
+                                  <div>
                                     <label className="text-sm font-medium">Content Type</label>
                                     <p className="text-sm text-muted-foreground">{selectedDocument.contentType}</p>
                                   </div>
@@ -264,31 +355,45 @@ export function ProcessedDocuments({ }: ProcessedDocumentsProps) {
                                     <p className="text-sm text-muted-foreground">{formatFileSize(selectedDocument.sizeBytes)}</p>
                                   </div>
                                   <div>
+                                    <label className="text-sm font-medium">Page Count</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.pageCount}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium">Document Type</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.documentType || 'N/A'}</p>
+                                  </div>
+                                  <div>
                                     <label className="text-sm font-medium">Status</label>
                                     <p className="text-sm text-muted-foreground">{selectedDocument.status}</p>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium">Uploaded By</label>
-                                    <p className="text-sm text-muted-foreground">{selectedDocument.ingestion.uploadedBy}</p>
+                                    <label className="text-sm font-medium">Dangerous Goods</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.isDangerousGoods ? 'Yes' : 'No'}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium">Confidence</label>
+                                    <p className="text-sm text-muted-foreground">
+                                      {selectedDocument.confidencePercentage !== null && selectedDocument.confidencePercentage !== undefined 
+                                        ? `${selectedDocument.confidencePercentage.toFixed(1)}%` 
+                                        : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium">Transport Type</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.transportType || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium">Branch</label>
+                                    <p className="text-sm text-muted-foreground">{selectedDocument.branch}</p>
                                   </div>
                                   <div>
                                     <label className="text-sm font-medium">Uploaded At</label>
-                                    <p className="text-sm text-muted-foreground">{formatDate(selectedDocument.ingestion.uploadedAt)}</p>
+                                    <p className="text-sm text-muted-foreground">{formatDate(selectedDocument.uploadedAt)}</p>
                                   </div>
                                 </div>
                                 <div>
                                   <label className="text-sm font-medium">Storage Path</label>
                                   <p className="text-sm text-muted-foreground">{selectedDocument.storage.blobPath}</p>
-                                </div>
-                                <div>
-                                  <label className="text-sm font-medium">Tags</label>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {selectedDocument.tags.map((tag, index) => (
-                                      <Badge key={index} variant="outline" className="text-xs">
-                                        {tag}
-                                      </Badge>
-                                    ))}
-                                  </div>
                                 </div>
                               </div>
                             )}

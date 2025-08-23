@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, FileText, CheckCircle, XCircle, Clock, Settings, AlertCircle } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
@@ -36,13 +37,16 @@ export function Ingestion({ }: IngestionProps) {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
-  const [uploadedBy, setUploadedBy] = useState('user@example.com')
-  const [tags, setTags] = useState('')
+  const [shipmentId, setShipmentId] = useState('')
+  const [branch, setBranch] = useState('SLC')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(event.target.files)
+    const files = event.target.files
+    if (files && files.length > 0) {
+      setSelectedFiles(files)
+    }
   }
 
   const handleFileUpload = async () => {
@@ -55,17 +59,24 @@ export function Ingestion({ }: IngestionProps) {
       return
     }
 
+    if (!shipmentId.trim()) {
+      toast({
+        title: "Shipment ID required",
+        description: "Please enter a shipment ID",
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsUploading(true)
     setUploadProgress(0)
 
     try {
-      const tagList = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-      
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i]
         setUploadProgress((i / selectedFiles.length) * 100)
         
-        await apiService.uploadDocument(file, uploadedBy, tagList)
+        await apiService.uploadDocument(file, shipmentId, branch)
         
         toast({
           title: "Upload successful",
@@ -74,11 +85,15 @@ export function Ingestion({ }: IngestionProps) {
       }
       
       setUploadProgress(100)
-      setSelectedFiles(null)
-      setTags('')
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      
+      setTimeout(() => {
+        setSelectedFiles(null)
+        setShipmentId('')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        setUploadProgress(0)
+      }, 1000)
       
     } catch (error) {
       toast({
@@ -141,24 +156,28 @@ export function Ingestion({ }: IngestionProps) {
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="uploadedBy">Uploaded By (Email)</Label>
+                  <Label htmlFor="shipmentId">Shipment ID *</Label>
                   <Input
-                    id="uploadedBy"
-                    type="email"
-                    value={uploadedBy}
-                    onChange={(e) => setUploadedBy(e.target.value)}
-                    placeholder="user@example.com"
+                    id="shipmentId"
+                    value={shipmentId}
+                    onChange={(e) => setShipmentId(e.target.value)}
+                    placeholder="Enter shipment identifier"
+                    required
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="tags">Tags (comma-separated)</Label>
-                  <Input
-                    id="tags"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    placeholder="invoice, client:acme, year:2025"
-                  />
+                  <Label htmlFor="branch">Branch</Label>
+                  <Select value={branch} onValueChange={setBranch}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SLC">SLC - Salt Lake City</SelectItem>
+                      <SelectItem value="LA">LA - Los Angeles</SelectItem>
+                      <SelectItem value="MAD">MAD - Madrid</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

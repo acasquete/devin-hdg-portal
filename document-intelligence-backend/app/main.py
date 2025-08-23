@@ -17,13 +17,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Document Management API",
+    title="Shipment Document Management API",
     description="""
-    A comprehensive document management system with Azure Storage and Cosmos DB integration.
+    A comprehensive shipment document management system with Azure Storage and Cosmos DB integration.
     
     
-    * **Upload Documents**: Store files in Azure Storage with metadata in Cosmos DB
-    * **List Documents**: Query documents with filters and pagination
+    * **Upload Shipment Documents**: Store shipping documents with shipment metadata
+    * **List Documents**: Query documents with shipment-specific filters and pagination
     * **Download Documents**: Generate temporary download URLs
     * **Delete Documents**: Remove documents from both storage and database
     * **API Key Authentication**: Secure access with API keys
@@ -37,7 +37,7 @@ app = FastAPI(
     """,
     version="1.0.0",
     contact={
-        "name": "Document Management API",
+        "name": "Shipment Document Management API",
         "email": "support@example.com",
     },
     license_info={
@@ -71,14 +71,14 @@ async def healthz():
 
 @app.post("/api/documents", response_model=DocumentUploadResponse, tags=["Documents"])
 async def upload_document(
-    file: UploadFile = File(..., description="Document file to upload"),
-    uploaded_by: str = Query(..., description="Email of the user uploading the document"),
-    tags: Optional[str] = Query(None, description="Comma-separated tags for the document"),
+    file: UploadFile = File(..., description="Shipment document file to upload"),
+    shipmentId: str = Query(..., description="Shipment ID or identifier for the document"),
+    branch: str = Query("SLC", description="Branch office (SLC, LA, MAD)"),
     api_key: str = Depends(verify_api_key)
 ):
-    """Upload a document to Azure Storage and store metadata in Cosmos DB"""
+    """Upload a shipment document to Azure Storage and store metadata in Cosmos DB"""
     request_id = str(uuid.uuid4())
-    logger.info(f"[{request_id}] Document upload started: {file.filename}")
+    logger.info(f"[{request_id}] Shipment document upload started: {file.filename} for shipment {shipmentId}")
     
     try:
         if file.content_type not in settings.ALLOWED_FILE_TYPES:
@@ -96,26 +96,22 @@ async def upload_document(
                 detail=f"File size {file_size_mb:.2f}MB exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB"
             )
         
-        tag_list = []
-        if tags:
-            tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-        
         metadata = await storage_service.upload_document(
             file_content=file_content,
             filename=file.filename,
             content_type=file.content_type,
-            uploaded_by=uploaded_by
+            shipment_id=shipmentId,
+            branch=branch
         )
         
-        metadata.tags = tag_list
-        
-        logger.info(f"[{request_id}] Document uploaded successfully: {metadata.id}")
+        logger.info(f"[{request_id}] Shipment document uploaded successfully: {metadata.id}")
         
         return DocumentUploadResponse(
             id=metadata.id,
+            shipmentId=metadata.shipmentId,
             filename=metadata.filename,
             status="success",
-            message="Document uploaded successfully"
+            message="Shipment document uploaded successfully"
         )
         
     except HTTPException:
@@ -126,10 +122,14 @@ async def upload_document(
 
 @app.get("/api/documents", response_model=DocumentListResponse, tags=["Documents"])
 async def list_documents(
-    q: Optional[str] = Query(None, description="Search query for filename and tags"),
-    tag: Optional[str] = Query(None, description="Filter by specific tag"),
-    contentType: Optional[str] = Query(None, description="Filter by content type (e.g., application/pdf)"),
-    status: Optional[str] = Query(None, description="Filter by status (stored, processing, failed)"),
+    shipmentId: Optional[str] = Query(None, description="Filter by shipment ID"),
+    status: Optional[str] = Query(None, description="Filter by status (Processing, Processed, Failed)"),
+    isDangerousGoods: Optional[bool] = Query(None, description="Filter by dangerous goods indicator"),
+    confidenceMin: Optional[float] = Query(None, ge=0, le=100, description="Minimum confidence percentage"),
+    confidenceMax: Optional[float] = Query(None, ge=0, le=100, description="Maximum confidence percentage"),
+    transportType: Optional[str] = Query(None, description="Filter by transport type (Air, Ocean, Transcon)"),
+    branch: Optional[str] = Query(None, description="Filter by branch (SLC, LA, MAD)"),
+    documentType: Optional[str] = Query(None, description="Filter by document type"),
     from_date: Optional[datetime] = Query(None, alias="from", description="Filter documents uploaded from this date"),
     to_date: Optional[datetime] = Query(None, alias="to", description="Filter documents uploaded to this date"),
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
@@ -138,16 +138,20 @@ async def list_documents(
     sortDir: str = Query("desc", regex="^(asc|desc)$", description="Sort direction (asc or desc)"),
     api_key: str = Depends(verify_api_key)
 ):
-    """List documents with filtering and pagination"""
+    """List shipment documents with filtering and pagination"""
     request_id = str(uuid.uuid4())
-    logger.info(f"[{request_id}] Document list requested")
+    logger.info(f"[{request_id}] Shipment document list requested")
     
     try:
         filters = DocumentFilters(
-            q=q,
-            tag=tag,
-            contentType=contentType,
+            shipmentId=shipmentId,
             status=status,
+            isDangerousGoods=isDangerousGoods,
+            confidenceMin=confidenceMin,
+            confidenceMax=confidenceMax,
+            transportType=transportType,
+            branch=branch,
+            documentType=documentType,
             from_date=from_date,
             to_date=to_date,
             page=page,
@@ -159,7 +163,7 @@ async def list_documents(
         documents, total = await storage_service.list_documents(filters)
         total_pages = (total + pageSize - 1) // pageSize
         
-        logger.info(f"[{request_id}] Found {total} documents, returning page {page}")
+        logger.info(f"[{request_id}] Found {total} shipment documents, returning page {page}")
         
         return DocumentListResponse(
             documents=documents,

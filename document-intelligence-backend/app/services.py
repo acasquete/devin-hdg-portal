@@ -7,7 +7,7 @@ from azure.cosmos import CosmosClient, PartitionKey
 from azure.core.exceptions import ResourceNotFoundError
 import logging
 from .config import settings
-from .models import DocumentMetadata, StorageInfo, IngestionInfo, DocumentFilters
+from .models import DocumentMetadata, StorageInfo, DocumentFilters
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class MockStorageService:
         self.documents: Dict[str, DocumentMetadata] = {}
         self.blobs: Dict[str, bytes] = {}
     
-    async def upload_document(self, file_content: bytes, filename: str, content_type: str, uploaded_by: str) -> DocumentMetadata:
+    async def upload_document(self, file_content: bytes, filename: str, content_type: str, shipment_id: str, branch: str = "SLC") -> DocumentMetadata:
         doc_id = str(uuid.uuid4())
         now = datetime.utcnow()
         blob_path = f"{now.year}/{now.month:02d}/{now.day:02d}/{filename}"
@@ -27,6 +27,7 @@ class MockStorageService:
         
         metadata = DocumentMetadata(
             id=doc_id,
+            shipmentId=shipment_id,
             filename=filename,
             contentType=content_type,
             sizeBytes=len(file_content),
@@ -35,12 +36,9 @@ class MockStorageService:
                 blobPath=blob_path,
                 etag=f"mock-etag-{doc_id}"
             ),
-            ingestion=IngestionInfo(
-                uploadedBy=uploaded_by,
-                uploadedAt=now
-            ),
-            tags=[],
-            status="stored"
+            uploadedAt=now,
+            branch=branch,
+            status="Processing"
         )
         
         self.documents[doc_id] = metadata
@@ -52,28 +50,39 @@ class MockStorageService:
     async def list_documents(self, filters: DocumentFilters) -> tuple[List[DocumentMetadata], int]:
         docs = list(self.documents.values())
         
-        if filters.q:
-            docs = [d for d in docs if filters.q.lower() in d.filename.lower() or 
-                   any(filters.q.lower() in tag.lower() for tag in d.tags)]
-        
-        if filters.contentType:
-            docs = [d for d in docs if d.contentType == filters.contentType]
+        if filters.shipmentId:
+            docs = [d for d in docs if filters.shipmentId.lower() in d.shipmentId.lower()]
         
         if filters.status:
             docs = [d for d in docs if d.status == filters.status]
         
-        if filters.tag:
-            docs = [d for d in docs if filters.tag in d.tags]
+        if filters.isDangerousGoods is not None:
+            docs = [d for d in docs if d.isDangerousGoods == filters.isDangerousGoods]
+        
+        if filters.confidenceMin is not None:
+            docs = [d for d in docs if d.confidencePercentage is not None and d.confidencePercentage >= filters.confidenceMin]
+        
+        if filters.confidenceMax is not None:
+            docs = [d for d in docs if d.confidencePercentage is not None and d.confidencePercentage <= filters.confidenceMax]
+        
+        if filters.transportType:
+            docs = [d for d in docs if d.transportType == filters.transportType]
+        
+        if filters.branch:
+            docs = [d for d in docs if d.branch == filters.branch]
+        
+        if filters.documentType:
+            docs = [d for d in docs if d.documentType == filters.documentType]
         
         if filters.from_date:
-            docs = [d for d in docs if d.ingestion.uploadedAt >= filters.from_date]
+            docs = [d for d in docs if d.uploadedAt >= filters.from_date]
         
         if filters.to_date:
-            docs = [d for d in docs if d.ingestion.uploadedAt <= filters.to_date]
+            docs = [d for d in docs if d.uploadedAt <= filters.to_date]
         
         reverse = filters.sortDir == "desc"
         if filters.sortBy == "uploadedAt":
-            docs.sort(key=lambda x: x.ingestion.uploadedAt, reverse=reverse)
+            docs.sort(key=lambda x: x.uploadedAt, reverse=reverse)
         elif filters.sortBy == "filename":
             docs.sort(key=lambda x: x.filename, reverse=reverse)
         elif filters.sortBy == "sizeBytes":
@@ -112,7 +121,7 @@ class AzureStorageService:
         self.database = self.cosmos_client.get_database_client(settings.AZURE_COSMOS_DATABASE_NAME)
         self.container = self.database.get_container_client(settings.AZURE_COSMOS_CONTAINER_NAME)
     
-    async def upload_document(self, file_content: bytes, filename: str, content_type: str, uploaded_by: str) -> DocumentMetadata:
+    async def upload_document(self, file_content: bytes, filename: str, content_type: str, shipment_id: str, branch: str = "SLC") -> DocumentMetadata:
         doc_id = str(uuid.uuid4())
         now = datetime.utcnow()
         blob_path = f"{now.year}/{now.month:02d}/{now.day:02d}/{filename}"
@@ -130,6 +139,7 @@ class AzureStorageService:
         
         metadata = DocumentMetadata(
             id=doc_id,
+            shipmentId=shipment_id,
             filename=filename,
             contentType=content_type,
             sizeBytes=len(file_content),
@@ -138,12 +148,9 @@ class AzureStorageService:
                 blobPath=blob_path,
                 etag=upload_result['etag']
             ),
-            ingestion=IngestionInfo(
-                uploadedBy=uploaded_by,
-                uploadedAt=now
-            ),
-            tags=[],
-            status="stored"
+            uploadedAt=now,
+            branch=branch,
+            status="Processing"
         )
         
         self.container.create_item(metadata.model_dump())
@@ -161,32 +168,48 @@ class AzureStorageService:
         query = "SELECT * FROM c WHERE 1=1"
         parameters = []
         
-        if filters.q:
-            query += " AND (CONTAINS(LOWER(c.filename), @q) OR EXISTS(SELECT VALUE t FROM t IN c.tags WHERE CONTAINS(LOWER(t), @q)))"
-            parameters.append({"name": "@q", "value": filters.q.lower()})
-        
-        if filters.contentType:
-            query += " AND c.contentType = @contentType"
-            parameters.append({"name": "@contentType", "value": filters.contentType})
+        if filters.shipmentId:
+            query += " AND CONTAINS(LOWER(c.shipmentId), @shipmentId)"
+            parameters.append({"name": "@shipmentId", "value": filters.shipmentId.lower()})
         
         if filters.status:
             query += " AND c.status = @status"
             parameters.append({"name": "@status", "value": filters.status})
         
-        if filters.tag:
-            query += " AND ARRAY_CONTAINS(c.tags, @tag)"
-            parameters.append({"name": "@tag", "value": filters.tag})
+        if filters.isDangerousGoods is not None:
+            query += " AND c.isDangerousGoods = @isDangerousGoods"
+            parameters.append({"name": "@isDangerousGoods", "value": filters.isDangerousGoods})
+        
+        if filters.confidenceMin is not None:
+            query += " AND c.confidencePercentage >= @confidenceMin"
+            parameters.append({"name": "@confidenceMin", "value": filters.confidenceMin})
+        
+        if filters.confidenceMax is not None:
+            query += " AND c.confidencePercentage <= @confidenceMax"
+            parameters.append({"name": "@confidenceMax", "value": filters.confidenceMax})
+        
+        if filters.transportType:
+            query += " AND c.transportType = @transportType"
+            parameters.append({"name": "@transportType", "value": filters.transportType})
+        
+        if filters.branch:
+            query += " AND c.branch = @branch"
+            parameters.append({"name": "@branch", "value": filters.branch})
+        
+        if filters.documentType:
+            query += " AND c.documentType = @documentType"
+            parameters.append({"name": "@documentType", "value": filters.documentType})
         
         if filters.from_date:
-            query += " AND c.ingestion.uploadedAt >= @fromDate"
+            query += " AND c.uploadedAt >= @fromDate"
             parameters.append({"name": "@fromDate", "value": filters.from_date.isoformat()})
         
         if filters.to_date:
-            query += " AND c.ingestion.uploadedAt <= @toDate"
+            query += " AND c.uploadedAt <= @toDate"
             parameters.append({"name": "@toDate", "value": filters.to_date.isoformat()})
         
         if filters.sortBy == "uploadedAt":
-            query += f" ORDER BY c.ingestion.uploadedAt {filters.sortDir.upper()}"
+            query += f" ORDER BY c.uploadedAt {filters.sortDir.upper()}"
         elif filters.sortBy == "filename":
             query += f" ORDER BY c.filename {filters.sortDir.upper()}"
         elif filters.sortBy == "sizeBytes":

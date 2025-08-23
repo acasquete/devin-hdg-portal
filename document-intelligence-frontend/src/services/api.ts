@@ -3,20 +3,23 @@ const API_KEY = (import.meta as any).env?.VITE_API_KEY || 'dev-api-key-change-in
 
 export interface DocumentMetadata {
   id: string
+  shipmentId: string
   filename: string
   contentType: string
   sizeBytes: number
+  pageCount: number
+  documentType?: string
+  status: 'Processing' | 'Processed' | 'Failed'
+  isDangerousGoods: boolean
+  confidencePercentage?: number
+  transportType?: string
+  branch: string
+  uploadedAt: string
   storage: {
     container: string
     blobPath: string
     etag: string
   }
-  ingestion: {
-    uploadedBy: string
-    uploadedAt: string
-  }
-  tags: string[]
-  status: 'stored' | 'processing' | 'failed'
 }
 
 export interface DocumentListResponse {
@@ -29,6 +32,7 @@ export interface DocumentListResponse {
 
 export interface DocumentUploadResponse {
   id: string
+  shipmentId: string
   filename: string
   status: string
   message: string
@@ -40,10 +44,14 @@ export interface DocumentDownloadResponse {
 }
 
 export interface DocumentFilters {
-  q?: string
-  tag?: string
-  contentType?: string
+  shipmentId?: string
   status?: string
+  isDangerousGoods?: boolean
+  confidenceMin?: number
+  confidenceMax?: number
+  transportType?: string
+  branch?: string
+  documentType?: string
   from?: string
   to?: string
   page?: number
@@ -61,19 +69,16 @@ class ApiService {
 
   async uploadDocument(
     file: File, 
-    uploadedBy: string, 
-    tags?: string[]
+    shipmentId: string, 
+    branch: string = 'SLC'
   ): Promise<DocumentUploadResponse> {
     const formData = new FormData()
     formData.append('file', file)
     
     const params = new URLSearchParams({
-      uploaded_by: uploadedBy,
+      shipmentId: shipmentId,
+      branch: branch,
     })
-    
-    if (tags && tags.length > 0) {
-      params.append('tags', tags.join(','))
-    }
 
     const response = await fetch(`${API_BASE_URL}/api/documents?${params}`, {
       method: 'POST',
@@ -92,11 +97,20 @@ class ApiService {
   async listDocuments(filters: DocumentFilters = {}): Promise<DocumentListResponse> {
     const params = new URLSearchParams()
     
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        params.append(key, value.toString())
-      }
-    })
+    if (filters.shipmentId) params.append('shipmentId', filters.shipmentId)
+    if (filters.status) params.append('status', filters.status)
+    if (filters.isDangerousGoods !== undefined) params.append('isDangerousGoods', filters.isDangerousGoods.toString())
+    if (filters.confidenceMin !== undefined) params.append('confidenceMin', filters.confidenceMin.toString())
+    if (filters.confidenceMax !== undefined) params.append('confidenceMax', filters.confidenceMax.toString())
+    if (filters.transportType) params.append('transportType', filters.transportType)
+    if (filters.branch) params.append('branch', filters.branch)
+    if (filters.documentType) params.append('documentType', filters.documentType)
+    if (filters.from) params.append('from', filters.from)
+    if (filters.to) params.append('to', filters.to)
+    if (filters.page) params.append('page', filters.page.toString())
+    if (filters.pageSize) params.append('pageSize', filters.pageSize.toString())
+    if (filters.sortBy) params.append('sortBy', filters.sortBy)
+    if (filters.sortDir) params.append('sortDir', filters.sortDir)
 
     const response = await fetch(`${API_BASE_URL}/api/documents?${params}`, {
       headers: this.getHeaders(),
