@@ -21,7 +21,7 @@ export function MainContent({ currentModule, currentItem }: MainContentProps) {
       case 'Dashboard':
         return <Dashboard currentModule={currentModule} />
       case 'Ingestion':
-        return <Ingestion currentModule={currentModule} />
+        return <Ingestion />
       case 'Processed Documents':
         return <ProcessedDocuments />
       case 'Schema Configuration':
