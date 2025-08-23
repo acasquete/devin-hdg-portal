@@ -39,7 +39,8 @@ az storage account create \
     --resource-group $RESOURCE_GROUP_NAME \
     --location $LOCATION \
     --sku Standard_LRS \
-    --kind StorageV2
+    --kind StorageV2 \
+    --min-tls-version TLS1_2
 
 STORAGE_CONNECTION_STRING=$(az storage account show-connection-string \
     --name $STORAGE_ACCOUNT_NAME \
