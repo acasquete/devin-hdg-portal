@@ -9,6 +9,12 @@ readme = "README.md"
 python = "^3.12"
 fastapi = {extras = ["standard"], version = "^0.116.1"}
 psycopg = {extras = ["binary"], version = "^3.2.9"}
+azure-storage-blob = "^12.26.0"
+azure-cosmos = "^4.9.0"
+python-dotenv = "^1.1.1"
+pydantic = "^2.11.7"
+uuid = "^1.30"
+python-multipart = "^0.0.20"
 
 
 [build-system]
