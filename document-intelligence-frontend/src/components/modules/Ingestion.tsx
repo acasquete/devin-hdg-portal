@@ -32,20 +32,39 @@ export function Ingestion({ currentModule }: IngestionProps) {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
 
-  const handleFileUpload = () => {
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    
     setIsUploading(true)
     setUploadProgress(0)
     
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setIsUploading(false)
-          return 100
-        }
-        return prev + 10
+    try {
+      const file = files[0]
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+      
+      const response = await fetch(`${apiBaseUrl}/documents`, {
+        method: 'POST',
+        body: formData
       })
-    }, 200)
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log('Upload successful:', result)
+      
+      setUploadProgress(100)
+      setIsUploading(false)
+      
+    } catch (error) {
+      console.error('Upload error:', error)
+      setIsUploading(false)
+      setUploadProgress(0)
+    }
   }
 
   const getStatusIcon = (status: string) => {
@@ -102,7 +121,18 @@ export function Ingestion({ currentModule }: IngestionProps) {
                 <p className="text-sm text-muted-foreground mb-4">
                   Supports PDF, PNG, JPG, TIFF files up to 10MB each
                 </p>
-                <Button onClick={handleFileUpload} disabled={isUploading}>
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  accept=".pdf,.png,.jpg,.jpeg,.tiff"
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                  disabled={isUploading}
+                />
+                <Button 
+                  onClick={() => document.getElementById('file-upload')?.click()} 
+                  disabled={isUploading}
+                >
                   {isUploading ? 'Uploading...' : 'Select Files'}
                 </Button>
               </div>

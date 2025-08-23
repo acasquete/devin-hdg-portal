@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "your_storage_connection_string_here",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "COSMOS_CONNECTION_STRING": "your_cosmos_connection_string_here",
+    "COSMOS_DATABASE_NAME": "DocumentIntelligence",
+    "COSMOS_CONTAINER_NAME": "Documents",
+    "DOCUMENT_INTELLIGENCE_ENDPOINT": "your_document_intelligence_endpoint_here",
+    "DOCUMENT_INTELLIGENCE_KEY": "your_document_intelligence_key_here",
+    "STORAGE_CONNECTION_STRING": "your_storage_connection_string_here",
+    "STORAGE_CONTAINER_NAME": "documents"
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -102,8 +102,35 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
   const [branchFilter, setBranchFilter] = useState('all')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [zoomLevel, setZoomLevel] = useState(100)
+  const [documents, setDocuments] = useState<Document[]>(mockDocuments)
+  const [loading, setLoading] = useState(false)
 
-  const filteredDocuments = mockDocuments.filter(doc => {
+  const enableMockData = import.meta.env.VITE_ENABLE_MOCK_DATA === 'true'
+
+  useEffect(() => {
+    if (!enableMockData) {
+      fetchDocuments()
+    }
+  }, [enableMockData])
+
+  const fetchDocuments = async () => {
+    setLoading(true)
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+      const response = await fetch(`${apiBaseUrl}/documents`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        setDocuments(data)
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.sourceFile.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.documentType.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = documentTypeFilter === 'all' || doc.documentType === documentTypeFilter
@@ -121,8 +148,8 @@ export function ProcessedDocuments({ currentModule }: ProcessedDocumentsProps) {
     return 'text-red-600'
   }
 
-  const documentTypes = [...new Set(mockDocuments.map(doc => doc.documentType))]
-  const branches = [...new Set(mockDocuments.map(doc => doc.branch))]
+  const documentTypes = [...new Set(documents.map(doc => doc.documentType))]
+  const branches = [...new Set(documents.map(doc => doc.branch))]
 
   return (
     <div className="space-y-6">
